@@ -1,0 +1,19 @@
+<!-- templates/menu/menu.html -->
+{% load menu_tags %}
+
+{% draw_menu menu_slug as menu %}
+
+<ul>
+    {% for item in menu.items %}
+        <li{% if item == menu.active %} class="active"{% endif %}>
+            <a href="{% if item.url %}{{ item.url }}{% else %} {% url item.named_url %}{% endif %}">
+                {{ item.title }}
+            </a>
+            {% if item in menu.active.get_ancestors or item == menu.active %}
+                {% if item.children.exists %}
+                    {% include 'menu/menu.html' with menu_slug=menu.slug items=item.children %}
+                {% endif %}
+            {% endif %}
+        </li>
+    {% endfor %}
+</ul>
