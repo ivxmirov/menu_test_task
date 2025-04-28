@@ -1,8 +1,8 @@
 from django import template
-from django.urls import resolve
 from ..models import MenuItem
 
 register = template.Library()
+
 
 @register.simple_tag(takes_context=True)
 def draw_menu(context, menu_name):
@@ -16,8 +16,7 @@ def draw_menu(context, menu_name):
         if item.parent_id is None:
             menu_tree[item.id] = {'item': item, 'children': []}
         else:
-            if item.parent_id in menu_tree:
-                menu_tree[item.parent_id]['children'].append({'item': item, 'children': []})
+            menu_tree[item.parent_id]['children'].append({'item': item, 'children': []})
 
     active_item = None
     for item in items:
@@ -25,26 +24,23 @@ def draw_menu(context, menu_name):
             active_item = item
             break
 
-    html = ''
-    for root in menu_tree.values():
-        html += render_menu_item(root, active_item, 0)
-
+    html = render_menu_tree(menu_tree, active_item)
     return html
 
-def render_menu_item(item_data, active_item, level):
-    item = item_data['item']
-    is_active = item == active_item
-    has_active_child = any(child['item'] == active_item for child in item_data['children'])
 
-    show_children = is_active or has_active_child or (active_item and item.id == active_item.parent_id)
+def render_menu_tree(tree, active_item, level=0):
+    html = ''
+    for key, node in tree.items():
+        is_active = node['item'].id == active_item.id if active_item else False
+        is_parent_active = active_item and active_item.parent_id == node['item'].id
 
-    html = f'<li class="menu-item level-{level}{" active" if is_active or has_active_child else ""}">'
-    html += f'<a href="{item.get_absolute_url()}">{item.name}</a>'
+        html += f'<li class="{"active" if is_active or is_parent_active else ""}">'
+        html += f'<a href="{node["item"].get_absolute_url()}">{node["item"].title}</a>'
 
-    if show_children and item_data['children']:
-        html += '<ul class="submenu">'
-        for child in item_data['children']:
-            html += render_menu_item(child, active_item, level + 1)
-        html += '</ul>'
+        if node['children'] or (is_active or is_parent_active):
+            html += '<ul>'
+            html += render_menu_tree({c['item'].id: c for c in node['children']}, active_item, level+1)
+            html += '</ul>'
 
-    html += '</li>'
+        html += '</li>'
+    return html
