@@ -9,38 +9,36 @@ def draw_menu(context, menu_name):
     request = context['request']
     current_path = request.path
 
-    items = MenuItem.objects.filter(menu_name=menu_name).select_related('parent').order_by('order')
+    items = MenuItem.objects.filter(
+        menu_name=menu_name).select_related('parent').order_by('order')
 
-    menu_tree = {}
-    for item in items:
-        if item.parent_id is None:
-            menu_tree[item.id] = {'item': item, 'children': []}
-        else:
-            menu_tree[item.parent_id]['children'].append({'item': item, 'children': []})
+    root_items = [item for item in items if item.parent is None]
 
-    active_item = None
-    for item in items:
-        if item.get_absolute_url() == current_path:
-            active_item = item
-            break
+    active_item = next((item for item in items if item.get_absolute_url(
+    ) == current_path), None)
 
-    html = render_menu_tree(menu_tree, active_item)
+    html = render_menu_recursive(root_items, active_item)
     return html
 
 
-def render_menu_tree(tree, active_item, level=0):
+def render_menu_recursive(items, active_item, level=0):
     html = ''
-    for key, node in tree.items():
-        is_active = node['item'].id == active_item.id if active_item else False
-        is_parent_active = active_item and active_item.parent_id == node['item'].id
 
-        html += f'<li class="{"active" if is_active or is_parent_active else ""}">'
-        html += f'<a href="{node["item"].get_absolute_url()}">{node["item"].title}</a>'
+    for item in items:
+        is_active = item == active_item
+        is_parent_active = active_item and active_item.parent_id == item.id
 
-        if node['children'] or (is_active or is_parent_active):
+        html += f'<li class="{
+            "active" if is_active or is_parent_active else ""
+        }">'
+        html += f'<a href="{item.get_absolute_url()}">{item.title}</a>'
+
+        if item.children.exists() or (is_active or is_parent_active):
             html += '<ul>'
-            html += render_menu_tree({c['item'].id: c for c in node['children']}, active_item, level+1)
+            html += render_menu_recursive(
+                item.children.all(), active_item, level+1)
             html += '</ul>'
 
         html += '</li>'
+
     return html
