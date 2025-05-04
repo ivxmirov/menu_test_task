@@ -1,0 +1,20 @@
+{% load menu_tags %}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Главная</title>
+</head>
+<body>
+    <h1>Главная страница</h1>
+    
+    <!-- Пример отрисовки меню -->
+    {% draw_menu 'main_menu' %}
+    {% draw_menu 'sidebar_menu' %}
+    
+    <!-- Контент страницы -->
+    <div class="content">
+        ...
+    </div>
+</body>
+</html>

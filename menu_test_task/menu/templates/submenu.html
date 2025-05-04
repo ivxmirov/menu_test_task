@@ -1,0 +1,12 @@
+<ul class="submenu">
+    {% for child in menu_items %}
+        {% if child.parent == parent %}
+            <li class="menu-item{% if child in active_items %} active{% endif %}{% if child.id in parent_ids %} expanded{% endif %}">
+                <a href="{{ child.get_url }}">{{ child.name }}</a>
+                {% if child.id in parent_ids or child in active_items %}
+                    {% include "submenu.html" with parent=child %}
+                {% endif %}
+            </li>
+        {% endif %}
+    {% endfor %}
+</ul>

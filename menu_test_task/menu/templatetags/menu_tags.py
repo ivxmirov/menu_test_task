@@ -1,44 +1,44 @@
 from django import template
-from menu.models import MenuItem
+from django.urls import resolve, Resolver404
+from ..models import MenuItem
 
 register = template.Library()
 
 
-@register.simple_tag(takes_context=True)
+@register.inclusion_tag('menu_template.html', takes_context=True)
 def draw_menu(context, menu_name):
     request = context['request']
-    current_path = request.path
+    current_url = request.path_info
 
-    items = MenuItem.objects.filter(
-        menu_name=menu_name).select_related('parent').order_by('order')
+    try:
+        resolved_url = resolve(current_url)
+        resolved_url_name = resolved_url.url_name
+    except Resolver404:
+        resolved_url_name = None
 
-    root_items = [item for item in items if item.parent is None]
+    menu_items = MenuItem.objects.filter(
+        menu_name=menu_name).select_related('parent')
 
-    active_item = next((item for item in items if item.get_absolute_url(
-    ) == current_path), None)
+    active_items = []
+    for item in menu_items:
+        if (
+            item.url == current_url
+                or item.named_url and item.named_url == resolved_url_name
+                ):
+            active_items.append(item)
 
-    html = render_menu_recursive(root_items, active_item)
-    return html
+    parent_ids = set()
+    for item in active_items:
+        parent = item.parent
+        while parent:
+            parent_ids.add(parent.id)
+            parent = parent.parent
 
-
-def render_menu_recursive(items, active_item, level=0):
-    html = ''
-
-    for item in items:
-        is_active = item == active_item
-        is_parent_active = active_item and active_item.parent_id == item.id
-
-        html += f'<li class="{
-            "active" if is_active or is_parent_active else ""
-        }">'
-        html += f'<a href="{item.get_absolute_url()}">{item.title}</a>'
-
-        if item.children.exists() or (is_active or is_parent_active):
-            html += '<ul>'
-            html += render_menu_recursive(
-                item.children.all(), active_item, level+1)
-            html += '</ul>'
-
-        html += '</li>'
-
-    return html
+    return {
+        'menu_items': menu_items,
+        'active_items': active_items,
+        'parent_ids': parent_ids,
+        'menu_name': menu_name,
+        'current_url': current_url,
+        'resolved_url_name': resolved_url_name,
+    }
